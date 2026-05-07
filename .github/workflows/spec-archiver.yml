@@ -1,0 +1,65 @@
+name: Archive Matrix Spec
+
+on:
+  # اجرای خودکار هر هفته (روز دوشنبه ساعت 00:00)
+  schedule:
+    - cron: '0 0 * * 1'
+  # امکان اجرای دستی از برگه Actions
+  workflow_dispatch:
+
+# تنظیم دسترسی‌های لازم برای کامیت در مخزن
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  archive-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Matrix spec (v1.18)
+        run: |
+          echo "Downloading https://spec.matrix.org/v1.18/ ..."
+          wget --mirror \
+            --convert-links \
+            --adjust-extension \
+            --page-requisites \
+            --no-parent \
+            --wait=2 \
+            --limit-rate=100k \
+            --random-wait \
+            --user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
+            https://spec.matrix.org/v1.18/
+
+      - name: Prepare directory
+        run: |
+          # حذف پوشه قدیمی اگر وجود داشته باشد (اختیاری)
+          rm -rf ./docs/spec
+          # ایجاد پوشه destination
+          mkdir -p ./docs
+          # جابجایی محتوای دانلود شده به مقصد
+          mv ./spec.matrix.org ./docs/spec
+          # حذف فایل‌های log اضافی (در صورت وجود)
+          rm -f ./wget-log*
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(spec): update local copy of Matrix specification (v1.18)"
+          title: "Update local copy of Matrix Specification"
+          body: |
+            This PR updates the local archive of the Matrix Specification (v1.18).
+
+            The specification is used as a reference for developing Axon.
+            Source: https://spec.matrix.org/v1.18/
+
+            **Changes:**
+            - Downloaded with `wget --mirror`
+            - Stored in `docs/spec/` directory
+          branch: "update-spec-docs"
+          delete-branch: true
+          add-paths: |
+            docs/spec/
